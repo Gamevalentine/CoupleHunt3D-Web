@@ -1,0 +1,172 @@
+name: Build G57 Maze Web
+
+on:
+  push:
+    branches: [g57-maze-web-build]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+        with:
+          ref: g57-maze-web-build
+
+      - name: Reconstruct G57 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf game dist
+          mkdir -p game/audio dist
+          base64 -d g57_build/g57_code_bundle.b64 > /tmp/g57_code.zip
+          unzip -q /tmp/g57_code.zip -d game
+
+      - name: Generate lightweight web audio
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import math, random, wave, struct, os
+          os.makedirs('game/audio', exist_ok=True)
+          SR=22050
+          def write(name, dur, fn, vol=0.22):
+              n=int(SR*dur)
+              with wave.open('game/audio/'+name,'wb') as w:
+                  w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
+                  frames=bytearray()
+                  for i in range(n):
+                      t=i/SR
+                      x=max(-1.0,min(1.0,fn(t,i,n)*vol))
+                      frames += struct.pack('<h', int(x*32767))
+                  w.writeframes(frames)
+          def fade(i,n):
+              a=min(1.0,i/(SR*.08)); b=min(1.0,(n-i)/(SR*.12)); return max(0.0,min(a,b))
+          def ambient(freq):
+              return lambda t,i,n: (0.55*math.sin(2*math.pi*freq*t)+0.28*math.sin(2*math.pi*(freq*1.51)*t)+0.14*math.sin(2*math.pi*0.19*t))
+          write('ambience_floor1.wav', 5.0, ambient(54), .10)
+          write('ambience_floor2.wav', 5.0, ambient(47), .105)
+          write('ambience_floor3.wav', 5.0, ambient(41), .11)
+          rng=random.Random(56057)
+          noise=[rng.uniform(-1,1) for _ in range(SR*7)]
+          def spooky(t,i,n):
+              pulse=(0.35+0.65*(0.5+0.5*math.sin(2*math.pi*.23*t)))
+              drone=.72*math.sin(2*math.pi*38*t)+.35*math.sin(2*math.pi*57.3*t)
+              return (drone + noise[i]*.24)*pulse
+          write('spooky_zone.wav', 7.0, spooky, .13)
+          def chirp(f0,f1,d):
+              return lambda t,i,n: math.sin(2*math.pi*(f0*t+(f1-f0)*t*t/(2*d)))*fade(i,n)
+          write('jump.wav', .25, chirp(290,520,.25), .22)
+          write('trap_hit.wav', .38, lambda t,i,n:(math.sin(2*math.pi*82*t)+noise[i%len(noise)]*.65)*fade(i,n), .27)
+          write('pickup.wav', .32, chirp(520,980,.32), .22)
+          write('correct.wav', .48, lambda t,i,n:(math.sin(2*math.pi*660*t)+.55*math.sin(2*math.pi*880*t))*fade(i,n), .20)
+          write('door_open.wav', .60, chirp(115,72,.60), .24)
+          write('floor_up.wav', .72, chirp(330,740,.72), .21)
+          write('victory.wav', 1.35, lambda t,i,n:(math.sin(2*math.pi*(440 if t<.45 else 554 if t<.9 else 659)*t)+.35*math.sin(2*math.pi*880*t))*fade(i,n), .19)
+          PY
+
+      - name: Create Web export preset
+        shell: bash
+        run: |
+          cat > game/export_presets.cfg <<'EOF'
+          [preset.0]
+          name="Web"
+          platform="Web"
+          runnable=true
+          advanced_options=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          export_path="../dist/index.html"
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          encrypt_pck=false
+          encrypt_directory=false
+          script_export_mode=2
+
+          [preset.0.options]
+          custom_template/debug=""
+          custom_template/release=""
+          variant/extensions_support=false
+          variant/thread_support=false
+          vram_texture_compression/for_desktop=true
+          vram_texture_compression/for_mobile=true
+          html/export_icon=true
+          html/custom_html_shell=""
+          html/head_include=""
+          html/canvas_resize_policy=2
+          html/focus_canvas_on_start=true
+          html/experimental_virtual_keyboard=true
+          progressive_web_app/enabled=false
+          progressive_web_app/ensure_cross_origin_isolation_headers=false
+          progressive_web_app/offline_page=""
+          progressive_web_app/display=0
+          progressive_web_app/orientation=1
+          progressive_web_app/icon_144x144=""
+          progressive_web_app/icon_180x180=""
+          progressive_web_app/icon_512x512=""
+          progressive_web_app/background_color=Color(0, 0, 0, 1)
+          EOF
+
+      - name: Install Godot 4.7.1 and Web templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -q -O /tmp/godot.zip https://godot-releases.nbg1.your-objectstorage.com/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          GODOT_BIN=$(find /tmp/godot -maxdepth 1 -type f -name 'Godot_v4.7.1-stable_linux.x86_64*' | head -1)
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          wget -q -O /tmp/templates.tpz https://godot-releases.nbg1.your-objectstorage.com/4.7.1-stable/Godot_v4.7.1-stable_export_templates.tpz
+          rm -rf /tmp/templates-unpack
+          mkdir -p /tmp/templates-unpack "$HOME/.local/share/godot/export_templates/4.7.1.stable"
+          unzip -q /tmp/templates.tpz -d /tmp/templates-unpack
+          cp -a /tmp/templates-unpack/templates/. "$HOME/.local/share/godot/export_templates/4.7.1.stable/"
+          "$GODOT_BIN" --version
+
+      - name: Import and export G57 Web
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path game --import
+          "$GODOT_BIN" --headless --path game --export-release Web "$(pwd)/dist/index.html"
+          test -f dist/index.html
+          test -f dist/index.pck
+          test -f dist/index.wasm
+          ls -lh dist
+
+      - name: Add small loading title
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/index.html')
+          s=p.read_text()
+          s=s.replace('<title>G57 - Me Cung 3D Web</title>', '<title>G57 - Mê Cung 3D</title>')
+          p.write_text(s)
+          PY
+
+      - name: Publish to /maze on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "G57 Web Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main
+          rm -rf /tmp/publish
+          git worktree add /tmp/publish origin/main
+          rm -rf /tmp/publish/maze
+          mkdir -p /tmp/publish/maze
+          cp -a dist/. /tmp/publish/maze/
+          touch /tmp/publish/.nojekyll
+          cd /tmp/publish
+          git add maze .nojekyll
+          git commit -m "Deploy G57 maze web" || true
+          git push origin HEAD:main
