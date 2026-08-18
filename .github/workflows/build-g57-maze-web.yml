@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     paths: [g57_build/TRIGGER.txt]
+  pull_request:
+    branches: [main]
+    paths: [g57_build/TRIGGER.txt]
   workflow_dispatch:
 
 permissions:
@@ -139,6 +142,13 @@ jobs:
           test -f dist/index.pck
           test -f dist/index.wasm
           ls -lh dist
+
+      - name: Upload G57 Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: G57-Web-Build
+          path: dist/
+          if-no-files-found: error
 
       - name: Publish under /maze
         shell: bash
