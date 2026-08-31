@@ -3,10 +3,10 @@ extends RefCounted
 
 const MAIN_DOOR_W := 4.60
 const STAIR_CENTER_X := -1.0
-const STAIR_OPEN_MIN_X := -2.25
-const STAIR_OPEN_MAX_X := 0.25
-const STAIR_OPEN_MIN_Z := -2.70
-const STAIR_OPEN_MAX_Z := 5.70
+const STAIR_OPEN_MIN_X := -2.15
+const STAIR_OPEN_MAX_X := 0.15
+const STAIR_OPEN_MIN_Z := -2.45
+const STAIR_OPEN_MAX_Z := 2.55
 
 static func build(f: Node3D, k: KheMayBuildKit) -> void:
     var m := k.mats
@@ -39,10 +39,10 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
         k.collision_box(f, p, Vector3(0.90, k.WALL_H, 0.90), "CornerBackstop")
 
     k.wall_z_opening(f, -7, 11.5, 11, 11.5, 1.65, k.DOOR_H, m.wall, "Clinic_Door")
-    k.door_z(f, -7, 11.5, 1.65, "ClinicDoor", "cửa phòng khám", -95.0)
+    k.door_z(f, -7, 11.5, 1.65, "ClinicDoor", "cửa phòng khám", -95.0, false, "", false, true)
     k.wall_x(f, -13.5, 6, 13, m.wall, "Clinic_South")
     k.wall_z_opening(f, -7, 1.5, 9, 1.5, 1.65, k.DOOR_H, m.wall, "Emergency_Door")
-    k.door_z(f, -7, 1.5, 1.65, "EmergencyDoor", "cửa phòng cấp cứu", 95.0)
+    k.door_z(f, -7, 1.5, 1.65, "EmergencyDoor", "cửa phòng cấp cứu", 95.0, false, "", false, true)
     k.wall_x(f, -13.5, -3, 13, m.wall, "Emergency_South")
 
     k.wall_x_opening(f, -17.5, -6, 5, -17.5, 1.25, k.DOOR_H, m.wall, "WCMale_Door")
@@ -61,7 +61,7 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
     var room_lengths := [6.5, 6.0, 6.0, 6.5, 9.0]
     for i in range(5):
         k.wall_z_opening(f, 5, room_z[i], room_lengths[i], room_z[i], k.DOOR_W, k.DOOR_H, m.wall, "Room%02d_Door" % (i + 1))
-        k.door_z(f, 5, room_z[i], k.DOOR_W, "Room%02dDoor" % (i + 1), "cửa Phòng %02d" % (i + 1), 95.0 if i % 2 == 0 else -95.0, false, "", false, i == 4)
+        k.door_z(f, 5, room_z[i], k.DOOR_W, "Room%02dDoor" % (i + 1), "cửa Phòng %02d" % (i + 1), 95.0 if i % 2 == 0 else -95.0, false, "", false, true)
     for split_z in [10.5, 4.5, -1.5, -8.0]:
         k.wall_x(f, 9.25, split_z, 8.5, m.wall, "WardSplit")
 
@@ -85,30 +85,50 @@ static func _build_ceiling_with_stair_opening(f: Node3D, k: KheMayBuildKit) -> v
     k.ceiling(f, Vector3(STAIR_CENTER_X, 0, -17.0 + south_d * 0.5), Vector2(STAIR_OPEN_MAX_X - STAIR_OPEN_MIN_X, south_d), k.mats.ceiling, "F1_Ceiling_South")
 
 static func _build_straight_stair(f: Node3D, k: KheMayBuildKit) -> void:
-    # One clean straight flight. Real-scale public-building proportions.
+    # One straight real-scale flight: 22 risers, 170 mm rise, 290 mm going, 1.80 m clear width.
+    # The visible geometry is thin treads + risers on one inclined structural slab.
+    # Only one invisible ramp carries player collision.
     var floor_height := 3.75
     var risers := 22
-    var riser := floor_height / float(risers) # 170.5 mm
-    var tread := 0.29                         # 290 mm
+    var rise := floor_height / float(risers)
+    var tread := 0.29
     var width := 1.80
-    var start_z := 5.15
+    var start_z := 5.00
     var run := tread * float(risers)
     var slope_len := sqrt(run * run + floor_height * floor_height)
     var slope_angle := atan2(floor_height, run)
+    var mid_z := start_z - run * 0.5
 
-    # Visible stair only. No per-step collision.
+    # Structural stair slab: removes the "floating comb" look from underneath.
+    var slab := k.mesh_box(
+        f,
+        Vector3(STAIR_CENTER_X, floor_height * 0.5 - 0.16, mid_z),
+        Vector3(width, 0.18, slope_len),
+        k.mats.utility,
+        "MainStair_Slab"
+    )
+    slab.rotation.x = slope_angle
+
+    # Constant-thickness treads and vertical risers. Nothing extends down to the ground.
     for i in range(risers):
-        var top_y := riser * float(i + 1)
-        var z := start_z - tread * float(i)
+        var top_y := rise * float(i + 1)
+        var step_z := start_z - tread * float(i) - tread * 0.5
         k.mesh_box(
             f,
-            Vector3(STAIR_CENTER_X, top_y * 0.5, z),
-            Vector3(width, top_y, tread),
+            Vector3(STAIR_CENTER_X, top_y - 0.04, step_z),
+            Vector3(width, 0.08, tread),
             k.mats.metal,
-            "MainStair_%02d" % i
+            "MainStair_Tread_%02d" % i
+        )
+        k.mesh_box(
+            f,
+            Vector3(STAIR_CENTER_X, top_y - rise * 0.5, step_z + tread * 0.5 - 0.025),
+            Vector3(width, rise, 0.05),
+            k.mats.metal,
+            "MainStair_Riser_%02d" % i
         )
 
-    # One hidden smooth ramp is the only collision for the flight.
+    # One smooth hidden ramp: no collision on treads, risers or handrails.
     var ramp := StaticBody3D.new()
     ramp.name = "MainStairRamp"
     var shape := CollisionShape3D.new()
@@ -116,39 +136,36 @@ static func _build_straight_stair(f: Node3D, k: KheMayBuildKit) -> void:
     box.size = Vector3(width - 0.08, 0.18, slope_len)
     shape.shape = box
     shape.rotation.x = slope_angle
-    shape.position = Vector3(
-        STAIR_CENTER_X,
-        floor_height * 0.5 - 0.04,
-        start_z - run * 0.5 + tread * 0.5
-    )
+    shape.position = Vector3(STAIR_CENTER_X, floor_height * 0.5 - 0.05, mid_z)
     ramp.add_child(shape)
     f.add_child(ramp)
 
-    # Top landing joins floor 2 at exactly 3.75 m.
+    # Top landing meets floor 2 exactly, then immediately exits onto the upstairs corridor.
     var top_edge_z := start_z - run
-    var landing_depth := 1.30
+    var landing_depth := 0.95
     var landing_z := top_edge_z - landing_depth * 0.5
-    k.mesh_box(f, Vector3(STAIR_CENTER_X, floor_height - 0.09, landing_z), Vector3(width, 0.18, landing_depth), k.mats.metal, "MainStairTopLanding")
-    k.collision_box(f, Vector3(STAIR_CENTER_X, floor_height - 0.09, landing_z), Vector3(width, 0.18, landing_depth), "MainStairTopLandingCollision")
+    k.mesh_box(f, Vector3(STAIR_CENTER_X, floor_height - 0.09, landing_z), Vector3(width, 0.18, landing_depth), k.mats.metal, "MainStair_TopLanding")
+    k.collision_box(f, Vector3(STAIR_CENTER_X, floor_height - 0.09, landing_z), Vector3(width, 0.18, landing_depth), "MainStair_TopLandingCollision")
 
-    # Simple 1.05 m handrails; visual only, so they cannot snag the player.
+    # Slim handrails with posts; kept visual-only so movement cannot catch on them.
     var rail_h := 1.05
-    var mid_z := start_z - run * 0.5 + tread * 0.5
-    for x in [STAIR_CENTER_X - width * 0.5, STAIR_CENTER_X + width * 0.5]:
+    for side_x in [STAIR_CENTER_X - width * 0.5, STAIR_CENTER_X + width * 0.5]:
+        for i in range(0, risers + 1, 4):
+            var p_y := rise * float(i) + rail_h * 0.5
+            var p_z := start_z - tread * float(i)
+            k.mesh_box(f, Vector3(side_x, p_y, p_z), Vector3(0.05, rail_h, 0.05), k.mats.metal, "MainStair_Post")
         var rail := k.mesh_box(
             f,
-            Vector3(x, floor_height * 0.5 + rail_h, mid_z),
+            Vector3(side_x, floor_height * 0.5 + rail_h, mid_z),
             Vector3(0.06, 0.06, slope_len),
             k.mats.metal,
-            "MainStairHandrail"
+            "MainStair_Handrail"
         )
         rail.rotation.x = slope_angle
 
 static func _furnish(f: Node3D, k: KheMayBuildKit, room_z: Array) -> void:
     k.reception_desk(f, Vector3(-1.2, 0, 12.2), 4.8, "ReceptionDesk")
-    # Staff chair is behind the desk; both public circulation lanes stay clear.
     k.chair(f, Vector3(-1.2, 0, 11.15), 0.0, "ReceptionStaffChair")
-    # Waiting benches sit against the west edge of the lobby, not in the two routes around the desk.
     k.bench(f, Vector3(-5.55, 0, 14.2), 2.2, "WaitingBenchA")
     k.bench(f, Vector3(-5.55, 0, 10.4), 2.2, "WaitingBenchB")
 
