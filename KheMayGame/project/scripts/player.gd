@@ -76,14 +76,14 @@ func _interact() -> void:
     interaction_ray.force_raycast_update()
     var target := _target()
     if target and target.has_method("interact"):
-        target.interact(self)
+        target.call("interact", self)
         _update_interaction_prompt(true)
 
 func _update_interaction_prompt(force := false) -> void:
     var text := ""
     var target := _target()
     if target and target.has_method("get_interaction_text"):
-        text = target.get_interaction_text(self)
+        text = str(target.call("get_interaction_text", self))
     if force or text != _last_prompt:
         _last_prompt = text
         interaction_prompt_changed.emit(text)
