@@ -7,7 +7,8 @@ const WALK_SPEED := 4.2
 const RUN_SPEED := 5.8
 const MOUSE_SENS := 0.0022
 const GRAVITY := 18.0
-const CAMERA_DISTANCE := 3.2
+const CAMERA_DISTANCE := 4.15
+const CAMERA_SHOULDER_OFFSET := 0.78
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -30,69 +31,105 @@ func _ready() -> void:
     _build_placeholder_body()
 
 func _setup_third_person_camera() -> void:
-    # Reuse the existing camera/raycast, but put them behind a SpringArm3D.
-    # The spring arm retracts automatically against ceilings and walls, so the
-    # camera can no longer be trapped inside the stair structure.
+    # Over-the-shoulder camera. SpringArm3D retracts against walls/ceilings,
+    # preventing the camera from clipping into the stairwell geometry.
     head.remove_child(camera)
 
     var spring := SpringArm3D.new()
     spring.name = "CameraSpring"
     spring.spring_length = CAMERA_DISTANCE
-    spring.margin = 0.24
+    spring.margin = 0.20
     spring.collision_mask = 1
-    spring.position.x = 0.38
+    spring.position = Vector3(CAMERA_SHOULDER_OFFSET, 0.14, 0)
     spring.add_excluded_object(get_rid())
     head.add_child(spring)
 
     spring.add_child(camera)
     camera.position = Vector3.ZERO
     camera.rotation = Vector3.ZERO
-    camera.fov = 68.0
+    camera.fov = 72.0
+    camera.near = 0.08
     camera.current = true
 
-    interaction_ray.target_position = Vector3(0, 0, -3.4)
+    interaction_ray.target_position = Vector3(0, 0, -4.2)
     interaction_ray.enabled = true
 
 func _build_placeholder_body() -> void:
+    # Simple rounded medical-worker placeholder. It remains intentionally basic
+    # so it can later be replaced by the final rig without changing gameplay.
     var body := Node3D.new()
     body.name = "VisualBody"
     add_child(body)
 
     var scrub_mat := StandardMaterial3D.new()
-    scrub_mat.albedo_color = Color(0.12, 0.25, 0.25)
-    scrub_mat.roughness = 0.92
+    scrub_mat.albedo_color = Color(0.10, 0.28, 0.27)
+    scrub_mat.roughness = 0.90
+
+    var scrub_dark := StandardMaterial3D.new()
+    scrub_dark.albedo_color = Color(0.075, 0.19, 0.19)
+    scrub_dark.roughness = 0.92
 
     var skin_mat := StandardMaterial3D.new()
     skin_mat.albedo_color = Color(0.62, 0.48, 0.39)
     skin_mat.roughness = 0.94
 
-    var shoe_mat := StandardMaterial3D.new()
-    shoe_mat.albedo_color = Color(0.07, 0.08, 0.08)
-    shoe_mat.roughness = 0.96
+    var hair_mat := StandardMaterial3D.new()
+    hair_mat.albedo_color = Color(0.055, 0.045, 0.038)
+    hair_mat.roughness = 0.96
 
-    _body_box(body, "Torso", Vector3(0, 1.18, 0), Vector3(0.56, 0.72, 0.30), scrub_mat)
-    _body_box(body, "ArmL", Vector3(-0.38, 1.14, 0), Vector3(0.15, 0.66, 0.17), scrub_mat)
-    _body_box(body, "ArmR", Vector3(0.38, 1.14, 0), Vector3(0.15, 0.66, 0.17), scrub_mat)
-    _body_box(body, "LegL", Vector3(-0.16, 0.47, 0), Vector3(0.21, 0.72, 0.23), scrub_mat)
-    _body_box(body, "LegR", Vector3(0.16, 0.47, 0), Vector3(0.21, 0.72, 0.23), scrub_mat)
-    _body_box(body, "ShoeL", Vector3(-0.16, 0.10, -0.05), Vector3(0.23, 0.14, 0.38), shoe_mat)
-    _body_box(body, "ShoeR", Vector3(0.16, 0.10, -0.05), Vector3(0.23, 0.14, 0.38), shoe_mat)
+    var shoe_mat := StandardMaterial3D.new()
+    shoe_mat.albedo_color = Color(0.055, 0.065, 0.065)
+    shoe_mat.roughness = 0.97
+
+    # Torso/pelvis are deliberately narrow so the character does not block aim.
+    _body_box(body, "Torso", Vector3(0, 1.18, 0), Vector3(0.46, 0.58, 0.24), scrub_mat)
+    _body_box(body, "Pelvis", Vector3(0, 0.84, 0), Vector3(0.40, 0.18, 0.23), scrub_dark)
+
+    _body_capsule(body, "ArmL", Vector3(-0.31, 1.12, 0), 0.075, 0.58, scrub_mat)
+    _body_capsule(body, "ArmR", Vector3(0.31, 1.12, 0), 0.075, 0.58, scrub_mat)
+    _body_capsule(body, "LegL", Vector3(-0.12, 0.48, 0), 0.095, 0.70, scrub_dark)
+    _body_capsule(body, "LegR", Vector3(0.12, 0.48, 0), 0.095, 0.70, scrub_dark)
+
+    _body_box(body, "ShoeL", Vector3(-0.12, 0.09, -0.055), Vector3(0.20, 0.12, 0.32), shoe_mat)
+    _body_box(body, "ShoeR", Vector3(0.12, 0.09, -0.055), Vector3(0.20, 0.12, 0.32), shoe_mat)
 
     var head_mesh := MeshInstance3D.new()
     head_mesh.name = "CharacterHead"
     var sphere := SphereMesh.new()
-    sphere.radius = 0.20
-    sphere.height = 0.40
+    sphere.radius = 0.17
+    sphere.height = 0.34
     head_mesh.mesh = sphere
-    head_mesh.position = Vector3(0, 1.68, 0)
+    head_mesh.position = Vector3(0, 1.66, 0)
     head_mesh.material_override = skin_mat
     body.add_child(head_mesh)
+
+    var hair := MeshInstance3D.new()
+    hair.name = "Hair"
+    var hair_mesh := SphereMesh.new()
+    hair_mesh.radius = 0.174
+    hair_mesh.height = 0.22
+    hair.mesh = hair_mesh
+    hair.position = Vector3(0, 1.72, 0.015)
+    hair.scale = Vector3(1.0, 0.55, 1.0)
+    hair.material_override = hair_mat
+    body.add_child(hair)
 
 func _body_box(parent: Node3D, node_name: String, pos: Vector3, size: Vector3, material: Material) -> void:
     var mesh_instance := MeshInstance3D.new()
     mesh_instance.name = node_name
     var mesh := BoxMesh.new()
     mesh.size = size
+    mesh_instance.mesh = mesh
+    mesh_instance.position = pos
+    mesh_instance.material_override = material
+    parent.add_child(mesh_instance)
+
+func _body_capsule(parent: Node3D, node_name: String, pos: Vector3, radius: float, height: float, material: Material) -> void:
+    var mesh_instance := MeshInstance3D.new()
+    mesh_instance.name = node_name
+    var mesh := CapsuleMesh.new()
+    mesh.radius = radius
+    mesh.height = height
     mesh_instance.mesh = mesh
     mesh_instance.position = pos
     mesh_instance.material_override = material
@@ -109,8 +146,8 @@ func _unhandled_input(event: InputEvent) -> void:
         rotate_y(-event.relative.x * MOUSE_SENS)
         head.rotation.x = clamp(
             head.rotation.x - event.relative.y * MOUSE_SENS,
-            deg_to_rad(-55.0),
-            deg_to_rad(55.0)
+            deg_to_rad(-48.0),
+            deg_to_rad(48.0)
         )
         return
 
