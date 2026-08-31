@@ -47,8 +47,10 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
     k.wall_z(f, -10, -11.5, 11, m.wall, "WC_Pharmacy_Split")
     k.wall_z(f, -3, -11.5, 11, m.wall, "Pharmacy_East")
 
-    k.wall_z(f, -3, 1.5, 9, m.wall, "Stair_West")
-    k.wall_z(f, 1, 1.5, 9, m.wall, "Stair_East")
+    # Stair core widened to match the real opening above. The old straight stair
+    # was trapped under the second-floor slab and produced the low-headroom view.
+    k.wall_z(f, -4, 0.5, 11.0, m.wall, "Stair_West")
+    k.wall_z(f, 2, 0.5, 11.0, m.wall, "Stair_East")
     _stairs(f, k)
 
     var room_z := [13.75, 7.5, 1.5, -4.75, -12.5]
@@ -108,21 +110,59 @@ static func _lights(f: Node3D, k: KheMayBuildKit, room_z: Array) -> void:
         k.ceiling_light(f, Vector3(9.5, 3.16, z), 0.66, 5.0, "WardLight")
 
 static func _stairs(f: Node3D, k: KheMayBuildKit) -> void:
-    var start_z := 5.4
-    var rise := 0.205
-    var run := 0.50
-    var steps := 18
-    for i in range(steps):
-        k.mesh_box(f, Vector3(-1, (i + 1) * rise * 0.5, start_z - i * run), Vector3(3.35, (i + 1) * rise, run), k.mats.metal, "Stair_%02d" % i)
-    var total_run := float(steps) * run
-    var total_rise := float(steps) * rise
-    var body := StaticBody3D.new()
-    body.name = "StairCollisionRamp"
-    var shape := CollisionShape3D.new()
-    var box := BoxShape3D.new()
-    box.size = Vector3(3.1, 0.24, sqrt(total_run * total_run + total_rise * total_rise))
-    shape.shape = box
-    shape.rotation.x = atan2(total_rise, total_run)
-    shape.position = Vector3(-1, total_rise * 0.5 - 0.08, start_z - total_run * 0.5)
-    body.add_child(shape)
-    f.add_child(body)
+    # Two-flight U stair: 9 risers + landing + 9 risers.
+    # Total rise = 3.75 m to match F2_Y.
+    var step_h := 3.75 / 18.0
+    var tread := 0.52
+    var flight_w := 2.25
+    var first_x := -2.55
+    var second_x := 0.55
+    var first_start_z := 5.05
+    var landing_z := -0.35
+
+    # First flight runs from north/front toward the landing.
+    for i in range(9):
+        var h := step_h * float(i + 1)
+        var z := first_start_z - tread * float(i)
+        k.solid_box(
+            f,
+            Vector3(first_x, h * 0.5, z),
+            Vector3(flight_w, h, tread),
+            k.mats.metal,
+            "StairA_%02d" % i
+        )
+
+    # Large landing gives a clear 180-degree turn and proper headroom.
+    var landing_y := step_h * 9.0
+    k.solid_box(
+        f,
+        Vector3(-1.0, landing_y - 0.10, landing_z),
+        Vector3(5.25, 0.20, 1.75),
+        k.mats.metal,
+        "StairLanding"
+    )
+
+    # Second flight returns toward the north and reaches floor 2.
+    for i in range(9):
+        var h_top := landing_y + step_h * float(i + 1)
+        var z2 := landing_z + 1.15 + tread * float(i)
+        k.solid_box(
+            f,
+            Vector3(second_x, h_top - 0.10, z2),
+            Vector3(flight_w, 0.20, tread),
+            k.mats.metal,
+            "StairB_%02d" % i
+        )
+
+    # Short top landing aligned with the real second-floor opening.
+    k.solid_box(
+        f,
+        Vector3(second_x, 3.65, 5.35),
+        Vector3(flight_w, 0.20, 1.20),
+        k.mats.metal,
+        "StairTopLanding"
+    )
+
+    # Low side rails only; no full-height wall across the player's head.
+    k.solid_box(f, Vector3(-3.78, 1.10, 1.6), Vector3(0.12, 2.20, 8.5), k.mats.metal, "StairRailWest")
+    k.solid_box(f, Vector3(1.78, 1.10, 1.6), Vector3(0.12, 2.20, 8.5), k.mats.metal, "StairRailEast")
