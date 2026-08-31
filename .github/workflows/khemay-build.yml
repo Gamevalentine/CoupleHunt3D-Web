@@ -1,0 +1,120 @@
+name: Build Khe May Windows
+
+on:
+  push:
+    branches: [khemay-game]
+    paths-ignore:
+      - 'KheMayGame/dist/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: khemay-windows-latest
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore Khe May project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf KheMayGame/work
+          mkdir -p KheMayGame/work
+          base64 -d KheMayGame/source.b64 > /tmp/KheMay_SourcePayload.zip
+          unzip -q /tmp/KheMay_SourcePayload.zip -d KheMayGame/work
+          test -f KheMayGame/work/project.godot
+          test -f KheMayGame/work/export_presets.cfg
+
+      - name: Resolve latest stable Godot 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(curl -fsSL https://api.github.com/repos/godotengine/godot/releases/latest | jq -r '.tag_name')"
+          case "$TAG" in
+            4.*-stable) ;;
+            *) echo "Unexpected Godot tag: $TAG" >&2; exit 1 ;;
+          esac
+          VER="${TAG%-stable}"
+          echo "GODOT_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "GODOT_VER=$VER" >> "$GITHUB_ENV"
+
+      - name: Install Godot and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_TAG}"
+          curl -fL --retry 3 -o /tmp/godot.zip "${BASE}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+          curl -fL --retry 3 -o /tmp/templates.tpz "${BASE}/Godot_v${GODOT_TAG}_export_templates.tpz"
+          mkdir -p /tmp/godot-bin /tmp/templates-unpacked
+          unzip -q /tmp/godot.zip -d /tmp/godot-bin
+          unzip -q /tmp/templates.tpz -d /tmp/templates-unpacked
+          GODOT_BIN="$(find /tmp/godot-bin -maxdepth 1 -type f -name 'Godot_v*_linux.x86_64' | head -n 1)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VER}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -a /tmp/templates-unpacked/templates/. "$TEMPLATE_DIR/"
+
+      - name: Import and validate project
+        shell: bash
+        working-directory: KheMayGame/work
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path . --editor --quit
+
+      - name: Export Windows build
+        shell: bash
+        working-directory: KheMayGame/work
+        run: |
+          set -euo pipefail
+          mkdir -p build/windows
+          "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" "build/windows/NguoiTrucCuoiCung.exe"
+          test -f build/windows/NguoiTrucCuoiCung.exe
+
+      - name: Package Windows build
+        shell: bash
+        working-directory: KheMayGame/work
+        run: |
+          set -euo pipefail
+          cd build/windows
+          zip -9 -r ../KheMay-Windows.zip .
+
+      - name: Publish stable latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git tag -f khemay-latest "$GITHUB_SHA"
+          git push origin refs/tags/khemay-latest --force
+          if gh release view khemay-latest >/dev/null 2>&1; then
+            gh release edit khemay-latest --title "Khe Mây — Latest Windows Build" --notes "Automated build from $GITHUB_SHA"
+          else
+            gh release create khemay-latest --title "Khe Mây — Latest Windows Build" --notes "Automated build from $GITHUB_SHA"
+          fi
+          gh release upload khemay-latest KheMayGame/work/build/KheMay-Windows.zip --clobber
+
+      - name: Publish launcher version marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p KheMayGame/dist
+          printf '%s' "$GITHUB_SHA" > KheMayGame/dist/latest-version.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add KheMayGame/dist/latest-version.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: publish Khe May build marker [skip ci]"
+            git push origin HEAD:khemay-game
+          fi
