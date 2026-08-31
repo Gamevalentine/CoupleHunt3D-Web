@@ -66,7 +66,7 @@ func get_interaction_text(player: Node) -> String:
     if story_locked:
         return "E  •  %s [khóa]" % display_name
     if locked:
-        if key_id != "" and player.has_method("has_item") and player.has_item(key_id):
+        if key_id != "" and player.has_method("has_item") and bool(player.call("has_item", key_id)):
             return "E  •  Mở khóa %s" % display_name
         return "E  •  %s [khóa]" % display_name
     return "E  •  %s %s" % ["Đóng" if is_open else "Mở", display_name]
@@ -76,7 +76,7 @@ func interact(player: Node) -> void:
         _notify(player, "Cửa đang bị khóa từ phía bên kia.")
         return
     if locked:
-        if key_id == "" or not player.has_method("has_item") or not player.has_item(key_id):
+        if key_id == "" or not player.has_method("has_item") or not bool(player.call("has_item", key_id)):
             _notify(player, "Cần chìa khóa phù hợp.")
             return
         locked = false
@@ -84,14 +84,14 @@ func interact(player: Node) -> void:
     var next_state := not is_open
     set_open(next_state)
     if is_instance_valid(linked_door) and linked_door.has_method("set_open"):
-        linked_door.set_open(next_state)
+        linked_door.call("set_open", next_state)
 
 func set_open(value: bool, instant := false) -> void:
     if is_open == value and not instant:
         return
     is_open = value
     var target := closed_rotation_y + (open_angle if is_open else 0.0)
-    if _tween and _tween.is_valid():
+    if _tween:
         _tween.kill()
     if instant:
         rotation.y = target
@@ -109,4 +109,4 @@ func force_unlock() -> void:
 
 func _notify(player: Node, text: String) -> void:
     if player.has_method("notify"):
-        player.notify(text)
+        player.call("notify", text)
