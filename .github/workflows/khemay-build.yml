@@ -17,6 +17,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GODOT_TAG: 4.7.2-stable
+      GODOT_VER: 4.7.2
 
     steps:
       - name: Checkout source
@@ -31,19 +34,7 @@ jobs:
           test -f KheMayGame/project/project.godot
           test -f KheMayGame/project/export_presets.cfg
           test -f KheMayGame/project/scripts/main.gd
-
-      - name: Resolve latest stable Godot 4
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="$(curl -fsSL https://api.github.com/repos/godotengine/godot/releases/latest | jq -r '.tag_name')"
-          case "$TAG" in
-            4.*-stable) ;;
-            *) echo "Unexpected Godot tag: $TAG" >&2; exit 1 ;;
-          esac
-          VER="${TAG%-stable}"
-          echo "GODOT_TAG=$TAG" >> "$GITHUB_ENV"
-          echo "GODOT_VER=$VER" >> "$GITHUB_ENV"
+          test -f KheMayGame/project/scripts/door.gd
 
       - name: Install Godot and export templates
         shell: bash
