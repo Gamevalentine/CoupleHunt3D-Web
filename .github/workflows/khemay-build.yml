@@ -61,6 +61,17 @@ jobs:
           set -euo pipefail
           "$GODOT_BIN" --headless --path . --editor --quit
 
+      - name: Runtime smoke test
+        shell: bash
+        working-directory: KheMayGame/project
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path . --quit-after 3 > /tmp/khemay-smoke.log 2>&1
+          cat /tmp/khemay-smoke.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Invalid set index|Cannot call method" /tmp/khemay-smoke.log; then
+            exit 1
+          fi
+
       - name: Export Windows build
         shell: bash
         working-directory: KheMayGame/project
