@@ -17,8 +17,12 @@ var _last_prompt := ""
 
 func _ready() -> void:
     motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+    up_direction = Vector3.UP
     max_slides = 8
     floor_stop_on_slope = true
+    floor_snap_length = 0.50
+    floor_max_angle = deg_to_rad(46.0)
+    safe_margin = 0.08
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
