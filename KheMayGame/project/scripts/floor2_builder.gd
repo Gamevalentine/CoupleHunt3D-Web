@@ -11,22 +11,28 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
 
     k.wall_x(f, 0, 10.5, 28, m.wall, "F2_North")
     k.wall_x_opening(f, 0, -10.5, 28, 0, 2, k.DOOR_H, m.wall, "F2_BalconyDoor")
+    k.door_x(f, 0, -10.5, 2.0, "BalconyDoor", "cửa ban công", 95.0, false, "", false, true)
     k.wall_z(f, -14, 0, 21, m.wall, "F2_West")
     k.wall_z(f, 14, 0, 21, m.wall, "F2_East")
 
     k.wall_x(f, -9.25, 2.3, 9.5, m.wall, "Duty_South")
     k.wall_z_opening(f, -4.5, 6.4, 8.2, 5.8, 1.45, k.DOOR_H, m.wall, "Duty_Door")
+    k.door_z(f, -4.5, 5.8, 1.45, "DutyDoor", "cửa phòng trực", 95.0)
     k.wall_x(f, 0, 2.3, 9, m.wall, "CCTV_South")
     k.wall_z_opening(f, 4.5, 6.4, 8.2, 5.8, 1.45, k.DOOR_H, m.wall, "CCTV_Door")
+    k.door_z(f, 4.5, 5.8, 1.45, "CCTVDoor", "cửa phòng CCTV", -95.0)
     k.wall_x(f, 9.25, 2.3, 9.5, m.wall, "Archive_South")
     k.wall_z_opening(f, 4.5, 6.4, 8.2, 7, 1.45, k.DOOR_H, m.wall, "Archive_Door")
+    k.door_z(f, 4.5, 7, 1.45, "ArchiveDoor", "cửa phòng hồ sơ", 95.0)
 
     k.wall_z(f, -3, 0.75, 10.5, m.wall, "F2_Stair_West")
     k.wall_z(f, 1, 0.75, 10.5, m.wall, "F2_Stair_East")
     k.wall_x(f, -8, -4, 12, m.wall, "F2_LeftLower_North")
     k.wall_z_opening(f, -2, -6.9, 5, -6.3, 1.45, k.DOOR_H, m.wall, "F2_LeftLower_Door")
+    k.door_z(f, -2, -6.3, 1.45, "F2LeftLowerDoor", "cửa khu vệ sinh", -95.0)
     k.wall_x(f, 8, -4, 12, m.wall, "F2_Rest_North")
     k.wall_z_opening(f, 2, -6.9, 5, -6.3, 1.45, k.DOOR_H, m.wall, "F2_Rest_Door")
+    k.door_z(f, 2, -6.3, 1.45, "RestDoor", "cửa phòng nghỉ", 95.0)
 
     k.floor(f, Vector3(0, 0, -12), Vector2(28, 3), m.utility, "F2_Balcony")
     k.solid_box(f, Vector3(0, 0.65, -13.4), Vector3(28, 1.3, 0.22), m.utility, "F2_BalconyRail")
