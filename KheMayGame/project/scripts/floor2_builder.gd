@@ -3,10 +3,14 @@ extends RefCounted
 
 static func build(f: Node3D, k: KheMayBuildKit) -> void:
     var m := k.mats
-    k.floor(f, Vector3(-8.5, 0, 0), Vector2(11, 21), m.floor, "F2_LeftSlab")
-    k.floor(f, Vector3(7.5, 0, 0), Vector2(13, 21), m.floor, "F2_RightSlab")
-    k.floor(f, Vector3(-1, 0, 8.25), Vector2(4, 4.5), m.floor, "F2_NorthBridge")
-    k.floor(f, Vector3(-1, 0, -7.5), Vector2(4, 6), m.floor, "F2_SouthBridge")
+
+    # Leave a real 6 m x 10.5 m stairwell opening in the center.
+    # Left/right slabs stop at x=-4 and x=2. Bridges only close the opening
+    # outside the stair run, so the player never climbs into a ceiling slab.
+    k.floor(f, Vector3(-9.0, 0, 0), Vector2(10, 21), m.floor, "F2_LeftSlab")
+    k.floor(f, Vector3(8.0, 0, 0), Vector2(12, 21), m.floor, "F2_RightSlab")
+    k.floor(f, Vector3(-1.0, 0, 8.25), Vector2(6, 4.5), m.floor, "F2_NorthBridge")
+    k.floor(f, Vector3(-1.0, 0, -7.5), Vector2(6, 6), m.floor, "F2_SouthBridge")
     k.ceiling(f, Vector3.ZERO, Vector2(28, 21), m.ceiling, "F2_Ceiling")
 
     k.wall_x_with_windows(f, 10.5, -14, 14, [
@@ -29,8 +33,14 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
     k.wall_z_opening(f, 4.5, 6.4, 8.2, 7, 1.45, k.DOOR_H, m.wall, "Archive_Door")
     k.door_z(f, 4.5, 7, 1.45, "ArchiveDoor", "cửa phòng hồ sơ", 95.0)
 
-    k.wall_z(f, -3, 0.75, 10.5, m.wall, "F2_Stair_West")
-    k.wall_z(f, 1, 0.75, 10.5, m.wall, "F2_Stair_East")
+    # Guard rails around the stair void instead of full-height walls.
+    k.solid_box(f, Vector3(-3.82, 0.55, 0.75), Vector3(0.12, 1.10, 10.5), m.metal, "F2_StairRailWest")
+    k.solid_box(f, Vector3(1.82, 0.55, 0.10), Vector3(0.12, 1.10, 9.2), m.metal, "F2_StairRailEast")
+    k.solid_box(f, Vector3(-1.0, 0.55, -4.42), Vector3(5.7, 1.10, 0.12), m.metal, "F2_StairRailSouth")
+
+    # Open north edge at the actual stair exit, around x=0.55 / z=5.35.
+    k.solid_box(f, Vector3(-2.85, 0.55, 5.92), Vector3(1.9, 1.10, 0.12), m.metal, "F2_StairRailNorthLeft")
+
     k.wall_x(f, -8, -4, 12, m.wall, "F2_LeftLower_North")
     k.wall_z_opening(f, -2, -6.9, 5, -6.3, 1.45, k.DOOR_H, m.wall, "F2_LeftLower_Door")
     k.door_z(f, -2, -6.3, 1.45, "F2LeftLowerDoor", "cửa khu vệ sinh", -95.0)
