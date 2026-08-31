@@ -64,6 +64,12 @@ func has_item(item_id: String) -> bool:
 func add_item(item_id: String) -> void:
     inventory[item_id] = true
 
+func consume_item(item_id: String) -> bool:
+    if not inventory.has(item_id):
+        return false
+    inventory.erase(item_id)
+    return true
+
 func notify(text: String) -> void:
     status_message_requested.emit(text)
 
