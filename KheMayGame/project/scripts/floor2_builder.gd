@@ -4,9 +4,8 @@ extends RefCounted
 static func build(f: Node3D, k: KheMayBuildKit) -> void:
     var m := k.mats
 
-    # Leave a real 6 m x 10.5 m stairwell opening in the center.
-    # Left/right slabs stop at x=-4 and x=2. Bridges only close the opening
-    # outside the stair run, so the player never climbs into a ceiling slab.
+    # Real stairwell opening. The U-stair below occupies only the center, while
+    # the surrounding floor remains safely guarded.
     k.floor(f, Vector3(-9.0, 0, 0), Vector2(10, 21), m.floor, "F2_LeftSlab")
     k.floor(f, Vector3(8.0, 0, 0), Vector2(12, 21), m.floor, "F2_RightSlab")
     k.floor(f, Vector3(-1.0, 0, 8.25), Vector2(6, 4.5), m.floor, "F2_NorthBridge")
@@ -33,13 +32,15 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
     k.wall_z_opening(f, 4.5, 6.4, 8.2, 7, 1.45, k.DOOR_H, m.wall, "Archive_Door")
     k.door_z(f, 4.5, 7, 1.45, "ArchiveDoor", "cửa phòng hồ sơ", 95.0)
 
-    # Guard rails around the stair void instead of full-height walls.
+    # 1.10 m guard rails around the void. The north opening is only 1.85 m,
+    # aligned with the 1.65 m second flight and its top landing.
     k.solid_box(f, Vector3(-3.82, 0.55, 0.75), Vector3(0.12, 1.10, 10.5), m.metal, "F2_StairRailWest")
     k.solid_box(f, Vector3(1.82, 0.55, 0.10), Vector3(0.12, 1.10, 9.2), m.metal, "F2_StairRailEast")
     k.solid_box(f, Vector3(-1.0, 0.55, -4.42), Vector3(5.7, 1.10, 0.12), m.metal, "F2_StairRailSouth")
 
-    # Open north edge at the actual stair exit, around x=0.55 / z=5.35.
-    k.solid_box(f, Vector3(-2.85, 0.55, 5.92), Vector3(1.9, 1.10, 0.12), m.metal, "F2_StairRailNorthLeft")
+    # Opening center is x=-0.075; clear width 1.85 m.
+    k.solid_box(f, Vector3(-2.40, 0.55, 5.92), Vector3(2.80, 1.10, 0.12), m.metal, "F2_StairRailNorthLeft")
+    k.solid_box(f, Vector3(1.335, 0.55, 5.92), Vector3(0.97, 1.10, 0.12), m.metal, "F2_StairRailNorthRight")
 
     k.wall_x(f, -8, -4, 12, m.wall, "F2_LeftLower_North")
     k.wall_z_opening(f, -2, -6.9, 5, -6.3, 1.45, k.DOOR_H, m.wall, "F2_LeftLower_Door")
