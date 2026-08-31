@@ -24,16 +24,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore Khe May project
+      - name: Verify Khe May project
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf KheMayGame/work
-          mkdir -p KheMayGame/work
-          base64 -d KheMayGame/source.b64 > /tmp/KheMay_SourcePayload.zip
-          unzip -q /tmp/KheMay_SourcePayload.zip -d KheMayGame/work
-          test -f KheMayGame/work/project.godot
-          test -f KheMayGame/work/export_presets.cfg
+          test -f KheMayGame/project/project.godot
+          test -f KheMayGame/project/export_presets.cfg
+          test -f KheMayGame/project/scripts/main.gd
 
       - name: Resolve latest stable Godot 4
         shell: bash
@@ -68,23 +65,24 @@ jobs:
 
       - name: Import and validate project
         shell: bash
-        working-directory: KheMayGame/work
+        working-directory: KheMayGame/project
         run: |
           set -euo pipefail
           "$GODOT_BIN" --headless --path . --editor --quit
 
       - name: Export Windows build
         shell: bash
-        working-directory: KheMayGame/work
+        working-directory: KheMayGame/project
         run: |
           set -euo pipefail
+          rm -rf build
           mkdir -p build/windows
           "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" "build/windows/NguoiTrucCuoiCung.exe"
           test -f build/windows/NguoiTrucCuoiCung.exe
 
       - name: Package Windows build
         shell: bash
-        working-directory: KheMayGame/work
+        working-directory: KheMayGame/project
         run: |
           set -euo pipefail
           cd build/windows
@@ -103,7 +101,7 @@ jobs:
           else
             gh release create khemay-latest --title "Khe Mây — Latest Windows Build" --notes "Automated build from $GITHUB_SHA"
           fi
-          gh release upload khemay-latest KheMayGame/work/build/KheMay-Windows.zip --clobber
+          gh release upload khemay-latest KheMayGame/project/build/KheMay-Windows.zip --clobber
 
       - name: Publish launcher version marker
         shell: bash
