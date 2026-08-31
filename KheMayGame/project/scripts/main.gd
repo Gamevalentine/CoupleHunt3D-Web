@@ -5,8 +5,11 @@ var mats: Dictionary = {}
 var interaction_label: Label
 var status_label: Label
 var status_timer: Timer
+var objective_label: Label
 var moon_light: DirectionalLight3D
 var atmosphere: KheMayAtmosphere
+var player_node: Node
+var first_case: KheMayFirstCase
 
 func _ready() -> void:
     randomize()
@@ -18,6 +21,7 @@ func _ready() -> void:
     _build_atmosphere()
     _build_ui()
     _build_player()
+    _build_first_case()
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8:
@@ -148,8 +152,19 @@ func _build_player() -> void:
     cam.add_child(ray)
 
     add_child(player)
+    player_node = player
     player.connect("interaction_prompt_changed", Callable(self, "_on_interaction_prompt_changed"))
     player.connect("status_message_requested", Callable(self, "_on_status_message_requested"))
+
+func _build_first_case() -> void:
+    var floor1 := get_node("KheMayStation/Floor1") as Node3D
+    first_case = KheMayFirstCase.new()
+    first_case.name = "FirstCase_Thanh"
+    add_child(first_case)
+    first_case.objective_changed.connect(_on_objective_changed)
+    first_case.message_requested.connect(_on_status_message_requested)
+    first_case.case_completed.connect(_on_first_case_completed)
+    first_case.setup(floor1, player_node)
 
 func _build_lighting() -> void:
     var env := WorldEnvironment.new()
@@ -206,6 +221,15 @@ func _build_ui() -> void:
     hint.modulate = Color(0.84, 0.87, 0.84, 0.72)
     ui.add_child(hint)
 
+    objective_label = Label.new()
+    objective_label.name = "ObjectiveLabel"
+    objective_label.position = Vector2(18, 48)
+    objective_label.size = Vector2(620, 58)
+    objective_label.text = "MỤC TIÊU\nĐang khởi tạo ca trực..."
+    objective_label.add_theme_font_size_override("font_size", 17)
+    objective_label.modulate = Color(0.88, 0.91, 0.86, 0.92)
+    ui.add_child(objective_label)
+
     var quit_button := Button.new()
     quit_button.name = "QuitButton"
     quit_button.text = "Đóng game  [F8]"
@@ -229,8 +253,8 @@ func _build_ui() -> void:
 
     interaction_label = Label.new()
     interaction_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-    interaction_label.position = Vector2(-145, -92)
-    interaction_label.size = Vector2(290, 34)
+    interaction_label.position = Vector2(-190, -92)
+    interaction_label.size = Vector2(380, 34)
     interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     interaction_label.add_theme_font_size_override("font_size", 17)
     interaction_label.visible = false
@@ -238,8 +262,8 @@ func _build_ui() -> void:
 
     status_label = Label.new()
     status_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-    status_label.position = Vector2(-200, -140)
-    status_label.size = Vector2(400, 34)
+    status_label.position = Vector2(-340, -145)
+    status_label.size = Vector2(680, 42)
     status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     status_label.add_theme_font_size_override("font_size", 16)
     status_label.visible = false
@@ -247,7 +271,7 @@ func _build_ui() -> void:
 
     status_timer = Timer.new()
     status_timer.one_shot = true
-    status_timer.wait_time = 2.2
+    status_timer.wait_time = 3.0
     status_timer.timeout.connect(_hide_status)
     ui.add_child(status_timer)
     add_child(ui)
@@ -264,6 +288,12 @@ func _on_status_message_requested(text: String) -> void:
     status_label.text = text
     status_label.visible = true
     status_timer.start()
+
+func _on_objective_changed(text: String) -> void:
+    objective_label.text = "MỤC TIÊU\n" + text
+
+func _on_first_case_completed() -> void:
+    objective_label.modulate = Color(0.64, 0.86, 0.68, 0.96)
 
 func _hide_status() -> void:
     status_label.visible = false
