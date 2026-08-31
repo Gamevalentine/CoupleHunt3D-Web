@@ -41,8 +41,9 @@ jobs:
         run: |
           set -euo pipefail
           BASE="https://github.com/godotengine/godot/releases/download/${GODOT_TAG}"
-          curl -fL --retry 3 -o /tmp/godot.zip "${BASE}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
-          curl -fL --retry 3 -o /tmp/templates.tpz "${BASE}/Godot_v${GODOT_TAG}_export_templates.tpz"
+          CURL_RETRY=(--fail --location --retry 5 --retry-delay 2 --retry-all-errors --connect-timeout 20)
+          curl "${CURL_RETRY[@]}" -o /tmp/godot.zip "${BASE}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+          curl "${CURL_RETRY[@]}" -o /tmp/templates.tpz "${BASE}/Godot_v${GODOT_TAG}_export_templates.tpz"
           mkdir -p /tmp/godot-bin /tmp/templates-unpacked
           unzip -q /tmp/godot.zip -d /tmp/godot-bin
           unzip -q /tmp/templates.tpz -d /tmp/templates-unpacked
