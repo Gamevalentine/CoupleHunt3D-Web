@@ -1,15 +1,15 @@
 class_name KheMayFloor2Builder
 extends RefCounted
 
+const STAIR_CENTER_X := -1.0
+const STAIR_OPEN_MIN_X := -2.25
+const STAIR_OPEN_MAX_X := 0.25
+const STAIR_OPEN_MIN_Z := -2.70
+const STAIR_OPEN_MAX_Z := 5.70
+
 static func build(f: Node3D, k: KheMayBuildKit) -> void:
     var m := k.mats
-
-    # Real stairwell opening. The U-stair below occupies only the center, while
-    # the surrounding floor remains safely guarded.
-    k.floor(f, Vector3(-9.0, 0, 0), Vector2(10, 21), m.floor, "F2_LeftSlab")
-    k.floor(f, Vector3(8.0, 0, 0), Vector2(12, 21), m.floor, "F2_RightSlab")
-    k.floor(f, Vector3(-1.0, 0, 8.25), Vector2(6, 4.5), m.floor, "F2_NorthBridge")
-    k.floor(f, Vector3(-1.0, 0, -7.5), Vector2(6, 6), m.floor, "F2_SouthBridge")
+    _build_floor_around_stair_opening(f, k)
     k.ceiling(f, Vector3.ZERO, Vector2(28, 21), m.ceiling, "F2_Ceiling")
 
     k.wall_x_with_windows(f, 10.5, -14, 14, [
@@ -32,15 +32,7 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
     k.wall_z_opening(f, 4.5, 6.4, 8.2, 7, 1.45, k.DOOR_H, m.wall, "Archive_Door")
     k.door_z(f, 4.5, 7, 1.45, "ArchiveDoor", "cửa phòng hồ sơ", 95.0)
 
-    # 1.10 m guard rails around the void. The north opening is only 1.85 m,
-    # aligned with the 1.65 m second flight and its top landing.
-    k.solid_box(f, Vector3(-3.82, 0.55, 0.75), Vector3(0.12, 1.10, 10.5), m.metal, "F2_StairRailWest")
-    k.solid_box(f, Vector3(1.82, 0.55, 0.10), Vector3(0.12, 1.10, 9.2), m.metal, "F2_StairRailEast")
-    k.solid_box(f, Vector3(-1.0, 0.55, -4.42), Vector3(5.7, 1.10, 0.12), m.metal, "F2_StairRailSouth")
-
-    # Opening center is x=-0.075; clear width 1.85 m.
-    k.solid_box(f, Vector3(-2.40, 0.55, 5.92), Vector3(2.80, 1.10, 0.12), m.metal, "F2_StairRailNorthLeft")
-    k.solid_box(f, Vector3(1.335, 0.55, 5.92), Vector3(0.97, 1.10, 0.12), m.metal, "F2_StairRailNorthRight")
+    _build_stair_guard(f, k)
 
     k.wall_x(f, -8, -4, 12, m.wall, "F2_LeftLower_North")
     k.wall_z_opening(f, -2, -6.9, 5, -6.3, 1.45, k.DOOR_H, m.wall, "F2_LeftLower_Door")
@@ -54,6 +46,33 @@ static func build(f: Node3D, k: KheMayBuildKit) -> void:
 
     _furnish(f, k)
     _lights(f, k)
+
+static func _build_floor_around_stair_opening(f: Node3D, k: KheMayBuildKit) -> void:
+    # Four slabs leave one clean rectangular void above the straight staircase.
+    var left_w := STAIR_OPEN_MIN_X + 14.0
+    var right_w := 14.0 - STAIR_OPEN_MAX_X
+    var north_d := 10.5 - STAIR_OPEN_MAX_Z
+    var south_d := STAIR_OPEN_MIN_Z + 10.5
+    k.floor(f, Vector3(-14.0 + left_w * 0.5, 0, 0), Vector2(left_w, 21), k.mats.floor, "F2_LeftSlab")
+    k.floor(f, Vector3(STAIR_OPEN_MAX_X + right_w * 0.5, 0, 0), Vector2(right_w, 21), k.mats.floor, "F2_RightSlab")
+    k.floor(f, Vector3(STAIR_CENTER_X, 0, STAIR_OPEN_MAX_Z + north_d * 0.5), Vector2(STAIR_OPEN_MAX_X - STAIR_OPEN_MIN_X, north_d), k.mats.floor, "F2_NorthBridge")
+    k.floor(f, Vector3(STAIR_CENTER_X, 0, -10.5 + south_d * 0.5), Vector2(STAIR_OPEN_MAX_X - STAIR_OPEN_MIN_X, south_d), k.mats.floor, "F2_SouthBridge")
+
+static func _build_stair_guard(f: Node3D, k: KheMayBuildKit) -> void:
+    var rail_h := 1.10
+    var rail_t := 0.08
+    var void_depth := STAIR_OPEN_MAX_Z - STAIR_OPEN_MIN_Z
+    var void_width := STAIR_OPEN_MAX_X - STAIR_OPEN_MIN_X
+    k.solid_box(f, Vector3(STAIR_OPEN_MIN_X, rail_h * 0.5, (STAIR_OPEN_MIN_Z + STAIR_OPEN_MAX_Z) * 0.5), Vector3(rail_t, rail_h, void_depth), k.mats.metal, "F2_StairRailWest")
+    k.solid_box(f, Vector3(STAIR_OPEN_MAX_X, rail_h * 0.5, (STAIR_OPEN_MIN_Z + STAIR_OPEN_MAX_Z) * 0.5), Vector3(rail_t, rail_h, void_depth), k.mats.metal, "F2_StairRailEast")
+    k.solid_box(f, Vector3(STAIR_CENTER_X, rail_h * 0.5, STAIR_OPEN_MAX_Z), Vector3(void_width, rail_h, rail_t), k.mats.metal, "F2_StairRailNorth")
+
+    # South edge is the stair exit. Leave a 1.95 m clear opening centered on the flight.
+    var exit_w := 1.95
+    var side_w := (void_width - exit_w) * 0.5
+    if side_w > 0.02:
+        k.solid_box(f, Vector3(STAIR_OPEN_MIN_X + side_w * 0.5, rail_h * 0.5, STAIR_OPEN_MIN_Z), Vector3(side_w, rail_h, rail_t), k.mats.metal, "F2_StairRailSouthLeft")
+        k.solid_box(f, Vector3(STAIR_OPEN_MAX_X - side_w * 0.5, rail_h * 0.5, STAIR_OPEN_MIN_Z), Vector3(side_w, rail_h, rail_t), k.mats.metal, "F2_StairRailSouthRight")
 
 static func _furnish(f: Node3D, k: KheMayBuildKit) -> void:
     k.table(f, Vector3(-9.2, 0, 5.9), Vector2(2.0, 0.78), "DutyDesk")
