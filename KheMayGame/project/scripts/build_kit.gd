@@ -88,20 +88,20 @@ func door_z(parent: Node3D, x: float, opening_z: float, width: float, door_id: S
 
 func double_door_x(parent: Node3D, center_x: float, z: float, total_width: float, door_id: String, display_name: String, windowed := true) -> Array:
     var leaf_w := total_width * 0.5
-    var left := _door_leaf(parent, Vector3(center_x - total_width * 0.5, 0, z), 0.0, leaf_w, door_id + "_L", display_name, 102.0, false, "", false, windowed)
-    var right := _door_leaf(parent, Vector3(center_x + total_width * 0.5, 0, z), PI, leaf_w, door_id + "_R", display_name, -102.0, false, "", false, windowed)
-    left.link_with(right)
-    right.link_with(left)
+    var left: Node = _door_leaf(parent, Vector3(center_x - total_width * 0.5, 0, z), 0.0, leaf_w, door_id + "_L", display_name, 102.0, false, "", false, windowed)
+    var right: Node = _door_leaf(parent, Vector3(center_x + total_width * 0.5, 0, z), PI, leaf_w, door_id + "_R", display_name, -102.0, false, "", false, windowed)
+    left.call("link_with", right)
+    right.call("link_with", left)
     return [left, right]
 
 func _door_leaf(parent: Node3D, hinge_pos: Vector3, base_rotation: float, width: float, door_id: String, display_name: String, open_degrees: float, locked: bool, key_id: String, story_locked: bool, windowed: bool) -> Node:
-    var door := AnimatableBody3D.new()
+    var door = AnimatableBody3D.new()
     door.name = door_id
     door.position = hinge_pos
     door.rotation.y = base_rotation
     door.set_script(load("res://scripts/door.gd"))
     parent.add_child(door)
-    door.configure(width, DOOR_H, DOOR_T, mats.door, mats.glass, door_id, display_name, open_degrees, locked, key_id, story_locked, windowed)
+    door.call("configure", width, DOOR_H, DOOR_T, mats.door, mats.glass, door_id, display_name, open_degrees, locked, key_id, story_locked, windowed)
     return door
 
 func bed(parent: Node3D, pos: Vector3, name: String) -> void:
